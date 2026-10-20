@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: paybeancoins
+  namespace: phaseolus
+spec:
+  selector:
+    app: paybeancoins
+  ports:
+    - port: 8080
+      targetPort: 8080
