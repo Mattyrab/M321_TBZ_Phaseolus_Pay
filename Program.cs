@@ -58,7 +58,7 @@ static Task HandleOrderCreatedAsync(EventEnvelope envelope, EventPublisher publi
     }
     else
     {
-        var succeededPayload = new PaymentSucceededPayload(payload.TotalAmount);
+        var succeededPayload = new PaymentSucceededPayload(payload.TotalAmount, payload.Items);
         var succeededEnvelope = envelope with
         {
             EventId = Guid.NewGuid(),
