@@ -15,9 +15,10 @@ var paymentsFailed = Metrics.CreateCounter("payments_failed_total", "Total numbe
 builder.Services.AddSingleton<IReadOnlyList<ConsumerBinding>>(sp =>
 {
     var publisher = sp.GetRequiredService<EventPublisher>();
+    var logger = sp.GetRequiredService<ILogger<Program>>();
     return new List<ConsumerBinding>
     {
-        new("pay.incoming-orders", "order.created", envelope => HandleOrderCreatedAsync(envelope, publisher, paymentsSucceeded, paymentsFailed)),
+        new("pay.incoming-orders", "order.created", envelope => HandleOrderCreatedAsync(envelope, publisher, paymentsSucceeded, paymentsFailed, logger)),
     };
 });
 builder.Services.AddHostedService<EventConsumerHostedService>();
@@ -38,7 +39,7 @@ app.Run();
 
 // Deterministic payment mock (architecture plan Q8): any item named "Rotten Beans"
 // (case-insensitive) fails the payment; everything else succeeds.
-static Task HandleOrderCreatedAsync(EventEnvelope envelope, EventPublisher publisher, Counter paymentsSucceeded, Counter paymentsFailed)
+static Task HandleOrderCreatedAsync(EventEnvelope envelope, EventPublisher publisher, Counter paymentsSucceeded, Counter paymentsFailed, ILogger<Program> logger)
 {
     var payload = envelope.Payload.Deserialize<OrderCreatedPayload>()!;
     var isRotten = payload.Items.Any(i => string.Equals(i.Name, "Rotten Beans", StringComparison.OrdinalIgnoreCase));
@@ -55,6 +56,7 @@ static Task HandleOrderCreatedAsync(EventEnvelope envelope, EventPublisher publi
         };
         publisher.Publish("payment.failed", failedEnvelope);
         paymentsFailed.Inc();
+        logger.LogInformation("Payment failed for order {OrderId}", envelope.OrderId);
     }
     else
     {
@@ -68,6 +70,7 @@ static Task HandleOrderCreatedAsync(EventEnvelope envelope, EventPublisher publi
         };
         publisher.Publish("payment.succeeded", succeededEnvelope);
         paymentsSucceeded.Inc();
+        logger.LogInformation("Payment succeeded for order {OrderId}", envelope.OrderId);
     }
 
     return Task.CompletedTask;
